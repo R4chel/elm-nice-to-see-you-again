@@ -75,7 +75,7 @@ viewShape shape =
 
 shapeCanGrow : Model -> Shape -> Bool
 shapeCanGrow model shape =
-    shape.growing && shape.r <= model.maxRadius
+    shape.growing && shape.r <= model.maxRadius && shape.x - shape.r >= 0 && shape.x + shape.r <= model.width && shape.y - shape.r >= 0 && shape.y + shape.r <= model.height
 
 
 shapeGrow : Model -> Shape -> Shape
