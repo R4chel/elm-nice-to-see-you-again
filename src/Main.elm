@@ -91,7 +91,7 @@ growShapes : Model -> List Shape -> List Shape -> List Shape
 growShapes model grownShapes toGrow =
     case toGrow of
         [] ->
-            grownShapes
+            List.reverse grownShapes
 
         hd :: tl ->
             let
