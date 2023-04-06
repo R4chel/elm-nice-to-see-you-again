@@ -30,6 +30,7 @@ type alias Shape =
 type alias Model =
     { width : Int
     , height : Int
+    , maxShapes : Int
     , minRadius : Int
     , maxRadius : Int
     , shapes : List Shape
@@ -112,7 +113,7 @@ init : () -> ( Model, Cmd Msg )
 init () =
     let
         model =
-            { width = 500, height = 500, minRadius = 5, maxRadius = 50, shapes = [] }
+            { width = 500, height = 500, maxShapes = 200, minRadius = 5, maxRadius = 50, shapes = [] }
     in
     ( model, Random.generate AddShape (generateShape model) )
 
@@ -146,7 +147,11 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    onAnimationFrame (\_ -> GenerateNewShape)
+    if List.length model.shapes <= model.maxShapes then
+        onAnimationFrame (\_ -> GenerateNewShape)
+
+    else
+        onAnimationFrame (\_ -> Grow)
 
 
 view : Model -> Html Msg
