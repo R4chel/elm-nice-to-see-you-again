@@ -56,7 +56,7 @@ generateShape model =
         Shape
         (Random.int 0 model.width)
         (Random.int 0 model.height)
-        (Random.int model.minRadius model.maxRadius)
+        (Random.constant model.minRadius)
         generateColor
         (Random.constant True)
 
