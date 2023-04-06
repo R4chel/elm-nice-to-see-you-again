@@ -73,28 +73,46 @@ viewShape shape =
         []
 
 
-shapeCanGrow : Model -> Shape -> Bool
-shapeCanGrow model shape =
+collides : Shape -> Shape -> Bool
+collides a b =
+    (a.r + b.r) ^ 2 >= (a.x - b.x) ^ 2 + (a.y - b.y) ^ 2
+
+
+shapeCanGrow : Model -> Shape -> (Shape -> Bool) -> Bool
+shapeCanGrow model shape checkAgainstOtherShapes =
     shape.growing && shape.r <= model.maxRadius && shape.x - shape.r >= 0 && shape.x + shape.r <= model.width && shape.y - shape.r >= 0 && shape.y + shape.r <= model.height
 
 
-shapeGrow : Model -> Shape -> Shape
-shapeGrow model shape =
-    let
-        canGrow =
-            shapeCanGrow model shape
-    in
-    if not canGrow then
-        if shape.growing then
-            { shape | growing = False }
 
-        else
-            shape
+-- && ( checkagainstOtherShapes shape )
 
-    else
-        { shape
-            | r = shape.r + 1
-        }
+
+growShapes : Model -> List Shape -> List Shape -> List Shape
+growShapes model grownShapes toGrow =
+    case toGrow of
+        [] ->
+            grownShapes
+
+        hd :: tl ->
+            let
+                canGrow =
+                    shapeCanGrow model hd (\shape -> not (List.any (collides shape) grownShapes || List.any (collides shape) tl))
+            in
+            let
+                shape =
+                    if not canGrow then
+                        if hd.growing then
+                            { hd | growing = False }
+
+                        else
+                            hd
+
+                    else
+                        { hd
+                            | r = hd.r + 1
+                        }
+            in
+            growShapes model (shape :: grownShapes) tl
 
 
 
@@ -138,7 +156,9 @@ update msg model =
             ( model, Random.generate AddShape (generateShape model) )
 
         Grow ->
-            ( { model | shapes = List.map (shapeGrow model) model.shapes }, Cmd.none )
+            ( { model | shapes = growShapes model [] model.shapes }
+            , Cmd.none
+            )
 
 
 
