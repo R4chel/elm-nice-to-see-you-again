@@ -80,11 +80,7 @@ collides a b =
 
 shapeCanGrow : Model -> Shape -> (Shape -> Bool) -> Bool
 shapeCanGrow model shape checkAgainstOtherShapes =
-    shape.growing && shape.r <= model.maxRadius && shape.x - shape.r >= 0 && shape.x + shape.r <= model.width && shape.y - shape.r >= 0 && shape.y + shape.r <= model.height
-
-
-
--- && ( checkagainstOtherShapes shape )
+    shape.growing && shape.r <= model.maxRadius && shape.x - shape.r >= 0 && shape.x + shape.r <= model.width && shape.y - shape.r >= 0 && shape.y + shape.r <= model.height && checkAgainstOtherShapes shape
 
 
 growShapes : Model -> List Shape -> List Shape -> List Shape
