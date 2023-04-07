@@ -20,6 +20,7 @@ type alias Config =
     , maxShapes : Int
     , minRadius : Int
     , maxRadius : Int
+    , maxFailedAttempts : Int
     }
 
 
@@ -49,13 +50,13 @@ generateColor =
         (Random.float 0.0 1.0)
 
 
-generateShape : Model -> Random.Generator Shape
-generateShape model =
+generateShape : Config -> Random.Generator Shape
+generateShape config =
     Random.map5
         Shape
-        (Random.int 0 model.config.width)
-        (Random.int 0 model.config.height)
-        (Random.constant model.config.minRadius)
+        (Random.int 0 config.width)
+        (Random.int 0 config.height)
+        (Random.constant config.minRadius)
         generateColor
         (Random.constant True)
 
@@ -110,6 +111,11 @@ growShapes config grownShapes toGrow =
             growShapes config (shape :: grownShapes) tl
 
 
+ableToAddShape : Model -> Shape -> Bool
+ableToAddShape model shape =
+    List.any (collides shape) model.shapes |> not
+
+
 
 -- MODEL
 
@@ -117,6 +123,7 @@ growShapes config grownShapes toGrow =
 type alias Model =
     { config : Config
     , shapes : List Shape
+    , failedAttempts : Int
     }
 
 
@@ -136,13 +143,19 @@ init : () -> ( Model, Cmd Msg )
 init () =
     let
         config =
-            { width = 500, height = 500, maxShapes = 200, minRadius = 5, maxRadius = 50 }
+            { width = 500
+            , height = 500
+            , maxShapes = 200
+            , minRadius = 5
+            , maxRadius = 50
+            , maxFailedAttempts = 500
+            }
     in
     let
         model =
-            { config = config, shapes = [] }
+            { config = config, failedAttempts = 0, shapes = [] }
     in
-    ( model, Random.generate AddShape (generateShape model) )
+    ( model, Random.generate MaybeAddShape (generateShape config) )
 
 
 
@@ -150,7 +163,7 @@ init () =
 
 
 type Msg
-    = AddShape Shape
+    = MaybeAddShape Shape
     | Grow
     | GenerateNewShape
 
@@ -158,11 +171,17 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        AddShape shape ->
-            ( { model | shapes = shape :: model.shapes }, Cmd.none )
+        MaybeAddShape shape ->
+            if ableToAddShape model shape then
+                ( { model | shapes = shape :: model.shapes }, Cmd.none )
+
+            else
+                ( { model | failedAttempts = model.failedAttempts + 1 }
+                , Cmd.none
+                )
 
         GenerateNewShape ->
-            ( model, Random.generate AddShape (generateShape model) )
+            ( model, Random.generate MaybeAddShape (generateShape model.config) )
 
         Grow ->
             ( { model | shapes = growShapes model.config [] model.shapes }
@@ -177,7 +196,7 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ if List.length model.shapes <= model.config.maxShapes then
+        [ if model.failedAttempts < model.config.maxFailedAttempts && List.length model.shapes <= model.config.maxShapes then
             onAnimationFrame (\_ -> GenerateNewShape)
 
           else
