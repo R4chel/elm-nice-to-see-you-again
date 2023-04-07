@@ -11,6 +11,19 @@ import Svg.Attributes exposing (..)
 
 
 
+-- CONFIG
+
+
+type alias Config =
+    { width : Int
+    , height : Int
+    , maxShapes : Int
+    , minRadius : Int
+    , maxRadius : Int
+    }
+
+
+
 -- SHAPE
 
 
@@ -20,20 +33,6 @@ type alias Shape =
     , r : Int
     , color : Color
     , growing : Bool
-    }
-
-
-
--- MODEL
-
-
-type alias Model =
-    { width : Int
-    , height : Int
-    , maxShapes : Int
-    , minRadius : Int
-    , maxRadius : Int
-    , shapes : List Shape
     }
 
 
@@ -54,9 +53,9 @@ generateShape : Model -> Random.Generator Shape
 generateShape model =
     Random.map5
         Shape
-        (Random.int 0 model.width)
-        (Random.int 0 model.height)
-        (Random.constant model.minRadius)
+        (Random.int 0 model.config.width)
+        (Random.int 0 model.config.height)
+        (Random.constant model.config.minRadius)
         generateColor
         (Random.constant True)
 
@@ -78,13 +77,13 @@ collides a b =
     (a.r + b.r) ^ 2 >= (a.x - b.x) ^ 2 + (a.y - b.y) ^ 2
 
 
-shapeCanGrow : Model -> Shape -> (Shape -> Bool) -> Bool
-shapeCanGrow model shape checkAgainstOtherShapes =
-    shape.growing && shape.r <= model.maxRadius && shape.x - shape.r >= 0 && shape.x + shape.r <= model.width && shape.y - shape.r >= 0 && shape.y + shape.r <= model.height && checkAgainstOtherShapes shape
+shapeCanGrow : Config -> Shape -> (Shape -> Bool) -> Bool
+shapeCanGrow config shape checkAgainstOtherShapes =
+    shape.growing && shape.r <= config.maxRadius && shape.x - shape.r >= 0 && shape.x + shape.r <= config.width && shape.y - shape.r >= 0 && shape.y + shape.r <= config.height && checkAgainstOtherShapes shape
 
 
-growShapes : Model -> List Shape -> List Shape -> List Shape
-growShapes model grownShapes toGrow =
+growShapes : Config -> List Shape -> List Shape -> List Shape
+growShapes config grownShapes toGrow =
     case toGrow of
         [] ->
             List.reverse grownShapes
@@ -92,7 +91,7 @@ growShapes model grownShapes toGrow =
         hd :: tl ->
             let
                 canGrow =
-                    shapeCanGrow model hd (\shape -> not (List.any (collides shape) grownShapes || List.any (collides shape) tl))
+                    shapeCanGrow config hd (\shape -> not (List.any (collides shape) grownShapes || List.any (collides shape) tl))
             in
             let
                 shape =
@@ -108,7 +107,17 @@ growShapes model grownShapes toGrow =
                             | r = hd.r + 1
                         }
             in
-            growShapes model (shape :: grownShapes) tl
+            growShapes config (shape :: grownShapes) tl
+
+
+
+-- MODEL
+
+
+type alias Model =
+    { config : Config
+    , shapes : List Shape
+    }
 
 
 
@@ -126,8 +135,12 @@ main =
 init : () -> ( Model, Cmd Msg )
 init () =
     let
+        config =
+            { width = 500, height = 500, maxShapes = 200, minRadius = 5, maxRadius = 50 }
+    in
+    let
         model =
-            { width = 500, height = 500, maxShapes = 200, minRadius = 5, maxRadius = 50, shapes = [] }
+            { config = config, shapes = [] }
     in
     ( model, Random.generate AddShape (generateShape model) )
 
@@ -152,7 +165,7 @@ update msg model =
             ( model, Random.generate AddShape (generateShape model) )
 
         Grow ->
-            ( { model | shapes = growShapes model [] model.shapes }
+            ( { model | shapes = growShapes model.config [] model.shapes }
             , Cmd.none
             )
 
@@ -163,19 +176,22 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if List.length model.shapes <= model.maxShapes then
-        onAnimationFrame (\_ -> GenerateNewShape)
+    Sub.batch
+        [ if List.length model.shapes <= model.config.maxShapes then
+            onAnimationFrame (\_ -> GenerateNewShape)
 
-    else
-        onAnimationFrame (\_ -> Grow)
+          else
+            Sub.none
+        , onAnimationFrame (\_ -> Grow)
+        ]
 
 
 view : Model -> Html Msg
 view model =
     svg
-        [ width (String.fromInt model.width)
-        , height (String.fromInt model.height)
-        , viewBox (String.join " " [ "0", "0", String.fromInt model.width, String.fromInt model.height ])
+        [ width (String.fromInt model.config.width)
+        , height (String.fromInt model.config.height)
+        , viewBox (String.join " " [ "0", "0", String.fromInt model.config.width, String.fromInt model.config.height ])
         ]
         (List.map
             viewShape
